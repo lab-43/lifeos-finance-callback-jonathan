@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="de" class="de idle">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="lifeos-callback" content="1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-PdzoWJOp57MDyS3KwnD7xtH4K4CaG5Hv7rNSANIOs/o='; style-src 'sha256-sNWG2gYt3OMS6Td1xP+ibzd0pc4xFCivrpjdvkQpATQ='; base-uri 'none'; form-action 'none'">
+<title>LifeOS</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1c1c1e; --muted: #6e6e73; --bg: #f5f5f7; --card: #ffffff; --line: #d2d2d7; --accent: #4f46e5; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #f5f5f7; --muted: #a1a1a6; --bg: #000000; --card: #1c1c1e; --line: #3a3a3c; --accent: #818cf8; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  main { width: min(30rem, calc(100vw - 2rem)); background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 1.75rem; }
+  h1 { margin: 0 0 .5rem; font-size: 1.25rem; font-weight: 600; }
+  p { margin: .5rem 0; color: var(--muted); }
+  a { color: var(--accent); }
+  .view, .lang { display: none; }
+  html.de .lang.de, html.en .lang.en { display: inline; }
+  html.idle .view.idle, html.back .view.back, html.error .view.error, html.bad .view.bad { display: block; }
+  code { display: block; margin: .75rem 0 .5rem; padding: .6rem .75rem; border: 1px solid var(--line); border-radius: 10px;
+    font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; word-break: break-all; color: var(--fg); }
+  button { font: inherit; padding: .45rem .9rem; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+  details { margin-top: 1rem; }
+  summary { cursor: pointer; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <section class="view idle">
+    <h1><span class="lang de">Diese Seite gehört zu LifeOS</span><span class="lang en">This page is part of LifeOS</span></h1>
+    <p><span class="lang de">Nach dem Login bei deiner Bank gibt sie die Antwort der Bank an LifeOS auf deinem Computer weiter. Sonst tut sie nichts, und sie speichert nichts.</span><span class="lang en">After you log in at your bank, it hands the bank's answer to LifeOS on your computer. It does nothing else and keeps nothing.</span></p>
+  </section>
+  <section class="view back">
+    <h1><span class="lang de">Zurück zu LifeOS …</span><span class="lang en">Back to LifeOS …</span></h1>
+    <p><span class="lang de">Deine Bank hat den Zugang bestätigt. LifeOS übernimmt jetzt.</span><span class="lang en">Your bank confirmed the access. LifeOS takes over now.</span></p>
+    <p><a id="back-link" href="#"><span class="lang de">Weiter zu LifeOS</span><span class="lang en">Continue to LifeOS</span></a></p>
+    <details>
+      <summary><span class="lang de">LifeOS öffnet sich nicht?</span><span class="lang en">LifeOS doesn't open?</span></summary>
+      <p><span class="lang de">Kopiere diesen Code und füge ihn in LifeOS unter Einstellungen › Finanzen ein. Er gilt nur kurz und nur zusammen mit LifeOS auf deinem Computer.</span><span class="lang en">Copy this code and paste it into LifeOS under Settings › Finance. It is valid only briefly and only together with LifeOS on your computer.</span></p>
+      <code id="code"></code>
+      <button id="copy" type="button"><span class="lang de">Kopieren</span><span class="lang en">Copy</span></button>
+    </details>
+  </section>
+  <section class="view error">
+    <h1><span class="lang de">Die Bank hat den Zugang nicht bestätigt</span><span class="lang en">The bank didn't confirm the access</span></h1>
+    <p id="error-text"></p>
+    <p><span class="lang de">LifeOS bekommt diese Antwort auch. Starte die Verbindung dort neu.</span><span class="lang en">LifeOS gets this answer too. Start the connection again there.</span></p>
+  </section>
+  <section class="view bad">
+    <h1><span class="lang de">Diese Adresse passt zu keiner Verbindung</span><span class="lang en">This address doesn't belong to a connection</span></h1>
+    <p><span class="lang de">Starte die Verbindung zu deiner Bank in LifeOS, nicht über einen Link von anderswo.</span><span class="lang en">Start the connection to your bank in LifeOS, not from a link you got elsewhere.</span></p>
+  </section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var root = document.documentElement;
+  var lang = String(navigator.language || "de").toLowerCase().indexOf("de") === 0 ? "de" : "en";
+  root.lang = lang;
+  var params = new URLSearchParams(location.search);
+  var code = params.get("code");
+  var state = params.get("state");
+  var error = params.get("error");
+  var detail = params.get("error_description");
+  // Nothing of the bank's answer stays in the address bar or the browser's history.
+  if (location.search) history.replaceState(null, "", location.pathname);
+
+  function show(view) { root.className = lang + " " + view; }
+  if (!code && !error) { show("idle"); return; }
+
+  // state is "<nonce>.<port>": LifeOS listens on this computer's 127.0.0.1, on that port only.
+  var match = /^([A-Za-z0-9_-]{16,128})\.([0-9]{4,5})$/.exec(state || "");
+  var port = match ? Number(match[2]) : 0;
+  var sane = function (v) { return v === null || (v.length <= 2048 && !/[\u0000-\u001f]/.test(v)); };
+  if (!match || port < 1024 || port > 65535 || !sane(code) || !sane(error) || !sane(detail)) { show("bad"); return; }
+
+  var back = new URL("http://127.0.0.1:" + port + "/enablebanking/callback");
+  back.searchParams.set("state", state);
+  if (code) back.searchParams.set("code", code);
+  if (error) back.searchParams.set("error", error);
+  if (detail) back.searchParams.set("error_description", detail);
+
+  if (code) {
+    document.getElementById("code").textContent = code;
+    document.getElementById("back-link").href = back.href;
+    document.getElementById("copy").addEventListener("click", function () {
+      if (navigator.clipboard) navigator.clipboard.writeText(code);
+    });
+    show("back");
+  } else {
+    document.getElementById("error-text").textContent = detail ? error + ": " + detail : error;
+    show("error");
+  }
+  setTimeout(function () { location.assign(back.href); }, 400);
+})();
+</script>
+</body>
+</html>
